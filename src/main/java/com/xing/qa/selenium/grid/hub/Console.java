@@ -3,9 +3,10 @@ package com.xing.qa.selenium.grid.hub;
 import java.io.IOException;
 import java.io.Writer;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -21,8 +22,8 @@ import org.openqa.grid.internal.TestSession;
 import org.openqa.grid.web.Hub;
 import org.openqa.grid.web.servlet.RegistryBasedServlet;
 import org.openqa.selenium.BuildInfo;
-import org.openqa.selenium.Capabilities;
-import org.openqa.selenium.remote.server.ActiveSessions;
+
+import com.xing.qa.selenium.grid.influxdb.InfluxDBConnector;
 
 /**
  * Console information nad more as JSON
@@ -34,6 +35,7 @@ public class Console extends RegistryBasedServlet {
 
     private final Logger log = Logger.getLogger(getClass().getName());
     private String coreVersion;
+    private static final ScheduledExecutorService EXECUTOR = Executors.newScheduledThreadPool(64);
 
     public Console() {
         this(null);
@@ -41,8 +43,8 @@ public class Console extends RegistryBasedServlet {
 
     public Console(GridRegistry registry) {
         super(registry);
-
         coreVersion = new BuildInfo().getReleaseLabel();
+        EXECUTOR.execute(new HubReporter("", InfluxDBConnector.INFLUX_DB, InfluxDBConnector.DATABASE, registry));
     }
 
     @Override
@@ -102,11 +104,9 @@ public class Console extends RegistryBasedServlet {
         pending.put("active", activeSessions);
         pending.put("requested_capabilities", requestedCapabilities);
 
-
-
         return pending;
     }
-
+    
     protected JSONObject status()
             throws JSONException {
             JSONObject status = new JSONObject();
